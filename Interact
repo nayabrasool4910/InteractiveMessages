@@ -1,0 +1,125 @@
+def elicit_intent(event, message):
+    return {
+        "sessionState": {
+            "dialogAction": {
+                "type": "ElicitIntent"
+            },
+            "sessionAttributes": {}
+        },
+        "messages": [message] if message else [],
+        "requestAttributes": event["requestAttributes"] if event.get("requestAttributes") else None
+    }
+
+
+def close(event, fulfillment_state, message):
+    event["sessionState"]["intent"]["state"] = fulfillment_state
+    return {
+        "sessionState": {
+            "sessionAttributes": {},
+            "dialogAction": {
+                "type": "Close"
+            },
+            "intent": event["sessionState"]["intent"]
+        },
+        "messages": [message] if message else [],
+        "sessionId": event["sessionId"],
+        "requestAttributes": event["requestAttributes"] if event.get("requestAttributes") else None
+    }
+
+
+def handle_request(request):
+    current_intent = request["sessionState"]["intent"]["name"]
+
+    json_list = {
+        "templateType": "ListPicker",
+        "version": "1.0",
+        "data": {
+            "content": {
+                "title": "How may I assist you?",
+                "subtitle": "Tap to select option",
+                "imageType": "URL",
+                "imageData": "https://www.goindigo.in/content/dam/indigov2/6e-website/downloadapp/Feature-Image.png",
+                "imageDescription": "Select any of the option",
+                "elements": [
+                    {
+                        "title": "Book a Flight",
+                        "imageType": "URL",
+                        "imageData": "https://cdn0.iconfinder.com/data/icons/travel-line-color-this-is-vacation-time/512/Flight_booking-512.png"
+                    },
+                    {
+                        "title": "Flight Information",
+                        "imageType": "URL",
+                        "imageData": "https://static.thenounproject.com/png/3652216-200.png",
+                    },
+                    {
+                        "title": "Manage Booking",
+                        "imageType": "URL",
+                        "imageData": "https://cdn0.iconfinder.com/data/icons/miscellaneous-22-line/128/booking_travel_tourism_online_reservation_ticket_air-ticket-512.png",
+                        "imageDescription": "Banana"
+                    },
+                    {
+                        "title": "Contact Us",
+                        "imageType": "URL",
+                        "imageData": "https://cdn-icons-png.flaticon.com/512/3095/3095583.png",
+                        "imageDescription": "Banana"
+                    }
+                ]
+            }
+        }
+    }
+
+    button_json = {
+        "templateType": "QuickReply",
+        "version": "1.0",
+        "data": {
+            "content": {
+                "title": "Which department would you like?",
+                "elements": [
+                    {
+                        "title": "Billing One"
+                    },
+                    {
+                        "title": "Cancellation"
+                    },
+                    {
+                        "title": "New Service"
+                    }
+                ]
+            }
+        }
+    }
+
+    if current_intent == 'Help':
+        message = {
+            "contentType": "CustomPayload",
+            "content": json.dumps(button_json)
+        }
+        return elicit_intent(request, message)
+    else:
+        message = {
+            "contentType": "PlainText",
+            "content": "You have selected the 'help' intent. How can I assist you today?"
+        }
+        return close(request, "Fulfilled", message)
+
+
+def lambda_handler(event, context):
+    try:
+        print(f"Request received: {json.dumps(event)}")
+        response = handle_request(event)
+        print(f"Returning response: {json.dumps(response)}")
+        return response
+    except Exception as err:
+        print("Error processing Lex request:", err)
+        session_attributes = event.get("sessionAttributes", {})
+        return {
+            "sessionAttributes": session_attributes,
+            "dialogAction": {
+                "type": "Close",
+                "fulfillmentState": "FAILED",
+                "message": {
+                    "contentType": "PlainText",
+                    "content": "Error in Lex Lambda",
+                },
+            },
+        }
